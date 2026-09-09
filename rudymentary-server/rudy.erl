@@ -23,7 +23,8 @@ handler(Listen) ->
     end.
 
 request(Client) ->
-    Recv = gen_tcp:recv(Client,0),
+    %Recv = gen_tcp:recv(Client,0),
+    Recv = read_request(Client, []),
     case Recv of
         {ok, Str} ->
             Request = http:parse_request(Str),
@@ -33,6 +34,22 @@ request(Client) ->
             io:format("rudy: error: ~w~n", [Error])
     end,
     gen_tcp:close(Client).
+
+read_request(Client, A) ->
+    case gen_tcp:recv(Client, 0) of
+        {ok, Str} ->
+            NextA = A ++ Str,
+            case check_header_end(NextA) of
+                true  -> {ok, NextA};
+                false -> read_request(Client, NextA)
+            end;
+        {error, Error} ->
+            {error, Error}
+    end.
+
+check_header_end([13,10,13,10|_]) -> true;
+check_header_end([_|Rest]) -> check_header_end(Rest);
+check_header_end([]) -> false.
 
 reply({{get, URI, _}, _, _}) ->
     timer:sleep(40),

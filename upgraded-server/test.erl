@@ -1,5 +1,5 @@
 -module(test).
--export([bench/2,multi_bench/3]).
+-export([bench/2,multi_bench/3,request/2,split_request/2]).
 
 
 multi_bench(Host,Port,N) ->
@@ -43,5 +43,20 @@ request(Host, Port) ->
     ok;
     {error, Error} ->
     io:format("test: error: ~w~n", [Error])
+    end,
+    gen_tcp:close(Server).
+
+split_request(Host, Port) ->
+    Opt = [list, {active, false}, {reuseaddr, true}],
+    {ok, Server} = gen_tcp:connect(Host, Port, Opt),
+    gen_tcp:send(Server, "GET /foo HTTP/1.1\r\n"),
+    timer:sleep(100),
+    gen_tcp:send(Server, "Host: localhost\r\n\r\n"),
+    Recv = gen_tcp:recv(Server, 0),
+    case Recv of
+        {ok, Response} ->
+            io:format("test: split request success: ~p~n", [Response]);
+        {error, Error} ->
+            io:format("test: error: ~w~n", [Error])
     end,
     gen_tcp:close(Server).
